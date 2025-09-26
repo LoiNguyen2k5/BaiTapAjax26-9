@@ -1,0 +1,82 @@
+# Định nghĩa các kiểu dữ liệu tương ứng với Entity
+type User {
+    id: ID!
+    fullname: String
+    email: String
+    phone: String
+    products: [Product]
+}
+
+type Category {
+    id: ID!
+    name: String
+    images: String
+    products: [Product]
+}
+
+type Product {
+    id: ID!
+    title: String
+    quantity: Int
+    desc: String
+    price: Float
+    user: User
+     category: Category
+}
+
+# Định nghĩa các câu truy vấn (đọc dữ liệu)
+type Query {
+    # Yêu cầu 2.1: Hiển thị tất cả product có price từ thấp đến cao
+    productsSortedByPrice: [Product]
+
+    # Yêu cầu 2.2: Lấy tất cả product của 01 category
+    productsByCategoryId(categoryId: ID!): [Product]
+
+    # Các query CRUD cơ bản
+    getAllUsers: [User]
+    getUserById(id: ID!): User
+    getAllCategories: [Category]
+    getCategoryById(id: ID!): Category
+    getAllProducts: [Product]
+    getProductById(id: ID!): Product
+}
+
+# Input types dùng cho Mutation để tránh việc client gửi ID khi tạo mới
+input UserInput {
+    fullname: String!
+    email: String!
+    password: String!
+    phone: String
+}
+
+input CategoryInput {
+    name: String!
+    images: String
+}
+
+input ProductInput {
+    title: String!
+    quantity: Int
+    desc: String
+    price: Float
+    userId: ID! # Cần ID của user để tạo product
+    categoryId: Int!
+}
+
+# Định nghĩa các mutation (tạo, cập nhật, xóa dữ liệu)
+type Mutation {
+    # CRUD cho User
+    createUser(user: UserInput!): User
+    updateUser(id: ID!, user: UserInput!): User
+    deleteUser(id: ID!): Boolean
+
+    # CRUD cho Category
+    createCategory(category: CategoryInput!): Category
+    updateCategory(id: ID!, category: CategoryInput!): Category
+    deleteCategory(id: ID!): Boolean
+
+    # CRUD cho Product
+    createProduct(product: ProductInput!): Product
+    updateProduct(id: ID!, product: ProductInput!): Product
+    deleteProduct(id: ID!): Boolean
+}

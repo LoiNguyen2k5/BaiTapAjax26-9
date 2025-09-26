@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>GraphQL Full CRUD Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #1c1e21; margin: 0; padding: 20px; }
+        h1, h2 { text-align: center; color: #0d6efd; }
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; max-width: 1800px; margin: 20px auto; }
+        .panel { background: white; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h3 { margin-top: 0; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; color: #495057; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; max-height: 250px; overflow-y: auto; border: 1px solid #dee2e6;}
+        button { padding: 8px 12px; border: none; background-color: #0d6efd; color: white; border-radius: 5px; cursor: pointer; margin: 5px 5px 5px 0; font-weight: 600; transition: background-color 0.2s; }
+        button:hover { background-color: #0b5ed7; }
+        button.delete { background-color: #dc3545; }
+        button.delete:hover { background-color: #bb2d3b; }
+        input, select { box-sizing: border-box; width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 5px; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: 600; display: block; margin-bottom: 5px; color: #6c757d; }
+    </style>
+</head>
+<body>
+
+<h1>GraphQL Full CRUD Demo</h1>
+
+<div class="main-container">
+    <!-- Panel Lấy Dữ Liệu -->
+    <div class="panel">
+        <h3>📜 Lấy Dữ Liệu (Read)</h3>
+        <button onclick="fetchProductsSorted()">Lấy Sản phẩm (sắp xếp giá)</button>
+        <button onclick="fetchAllUsers()">Lấy Tất cả User</button>
+        <button onclick="fetchAllCategories()">Lấy Tất cả Category</button>
+        <div class="form-group" style="margin-top:15px;">
+            <label for="categoryIdInput">Lấy sản phẩm theo Category ID:</label>
+            <input type="number" id="categoryIdInput" value="1"/>
+            <button onclick="fetchProductsByCategory()">Lấy</button>
+        </div>
+        <h3>Kết quả:</h3>
+        <pre id="readResult">Chưa có dữ liệu...</pre>
+    </div>
+
+    <!-- Panel User CRUD -->
+    <div class="panel">
+        <h3>👤 User CRUD</h3>
+        <div class="form-group">
+            <label>Fullname:</label><input type="text" id="userFullname" value="Test User">
+            <label>Email:</label><input type="email" id="userEmail" value="test@example.com">
+            <label>Password:</label><input type="password" id="userPassword" value="123456">
+            <button onclick="createUser()">Create User</button>
+        </div>
+        <hr>
+        <div class="form-group">
+            <label>User ID để Update/Delete:</label><input type="number" id="userIdUpdateDelete" placeholder="Nhập ID từ kết quả bên trái">
+            <label>Fullname mới (cho Update):</label><input type="text" id="userFullnameUpdate" value="Updated User">
+            <button onclick="updateUser()">Update User</button>
+            <button class="delete" onclick="deleteUser()">Delete User</button>
+        </div>
+        <h3>Kết quả User CRUD:</h3>
+        <pre id="userResult">Chưa có dữ liệu...</pre>
+    </div>
+
+    <!-- Panel Category CRUD -->
+    <div class="panel">
+        <h3>🏷️ Category CRUD</h3>
+        <div class="form-group">
+            <label>Tên Category:</label><input type="text" id="categoryName" value="Sample Category">
+            <button onclick="createCategory()">Create Category</button>
+        </div>
+        <hr>
+        <div class="form-group">
+            <label>Category ID để Update/Delete:</label><input type="number" id="categoryIdUpdateDelete" placeholder="Nhập ID từ kết quả bên trái">
+            <label>Tên Category mới (cho Update):</label><input type="text" id="categoryNameUpdate" value="Updated Category">
+            <button onclick="updateCategory()">Update Category</button>
+            <button class="delete" onclick="deleteCategory()">Delete Category</button>
+        </div>
+        <h3>Kết quả Category CRUD:</h3>
+        <pre id="categoryResult">Chưa có dữ liệu...</pre>
+    </div>
+
+     <!-- Panel Product CRUD -->
+    <div class="panel">
+        <h3>📦 Product CRUD</h3>
+        <div class="form-group">
+            <label>Title:</label><input type="text" id="productTitle" value="New Product">
+            <label>Price:</label><input type="number" id="productPrice" value="99.99">
+            <label>User ID:</label><input type="number" id="productUserId" placeholder="Nhập User ID hợp lệ">
+            <label>Category ID:</label><input type="number" id="productCategoryId" placeholder="Nhập Category ID hợp lệ">
+            <button onclick="createProduct()">Create Product</button>
+        </div>
+         <hr>
+        <div class="form-group">
+            <label>Product ID để Delete:</label><input type="number" id="productIdDelete" placeholder="Nhập ID từ kết quả bên trái">
+            <button class="delete" onclick="deleteProduct()">Delete Product</button>
+        </div>
+        <h3>Kết quả Product CRUD:</h3>
+        <pre id="productResult">Chưa có dữ liệu...</pre>
+    </div>
+</div>
+
+<script>
+    const GRAPHQL_ENDPOINT = '/graphql';
+
+    async function callGraphQL(query, variables = {}) {
+        try {
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables })
+            });
+            if (!response.ok) throw new Error(`HTTP Lỗi! Status: ${response.status}`);
+            const jsonResponse = await response.json();
+            if (jsonResponse.errors) throw new Error(jsonResponse.errors.map(e => e.message).join('\n'));
+            return jsonResponse.data;
+        } catch (error) {
+            console.error('GraphQL Call Error:', error);
+            alert(`Lỗi GraphQL: ${error.message}`);
+            return null;
+        }
+    }
+
+    // --- READ FUNCTIONS ---
+    async function fetchProductsSorted() {
+        const query = `query { productsSortedByPrice { id title price category { name } } }`;
+        const resultElement = document.getElementById('readResult');
+        resultElement.textContent = 'Đang tải...';
+        const data = await callGraphQL(query);
+        if (data) resultElement.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function fetchAllUsers() {
+        const query = `query { getAllUsers { id fullname email } }`;
+        const resultElement = document.getElementById('readResult');
+        resultElement.textContent = 'Đang tải...';
+        const data = await callGraphQL(query);
+        if (data) resultElement.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function fetchAllCategories() {
+        const query = `query { getAllCategories { id name } }`;
+        const resultElement = document.getElementById('readResult');
+        resultElement.textContent = 'Đang tải...';
+        const data = await callGraphQL(query);
+        if (data) resultElement.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function fetchProductsByCategory() {
+        const categoryId = document.getElementById('categoryIdInput').value;
+        if (!categoryId) return alert('Nhập Category ID');
+        const query = `query GetProductsByCat($catId: ID!) { productsByCategoryId(categoryId: $catId) { id title price } }`;
+        const resultElement = document.getElementById('readResult');
+        resultElement.textContent = 'Đang tải...';
+        const data = await callGraphQL(query, { catId: categoryId });
+        if (data) resultElement.textContent = JSON.stringify(data, null, 2);
+    }
+
+    // --- USER CRUD ---
+    async function createUser() {
+        const mutation = `mutation($input: UserInput!) { createUser(user: $input) { id fullname email } }`;
+        const variables = { input: { fullname: document.getElementById('userFullname').value, email: document.getElementById('userEmail').value, password: document.getElementById('userPassword').value, phone: "N/A" } };
+        const data = await callGraphQL(mutation, variables);
+        if (data) document.getElementById('userResult').textContent = "Tạo thành công!\n" + JSON.stringify(data, null, 2);
+    }
+    async function updateUser() {
+        const id = document.getElementById('userIdUpdateDelete').value;
+        if (!id) return alert('Nhập User ID để cập nhật');
+        const mutation = `mutation($id: ID!, $input: UserInput!) { updateUser(id: $id, user: $input) { id fullname email } }`;
+        const variables = { id, input: { fullname: document.getElementById('userFullnameUpdate').value, email: `updated${Date.now()}@example.com`, password: "updated", phone: "N/A" } };
+        const data = await callGraphQL(mutation, variables);
+        if (data) document.getElementById('userResult').textContent = "Cập nhật thành công!\n" + JSON.stringify(data, null, 2);
+    }
+    async function deleteUser() {
+        const id = document.getElementById('userIdUpdateDelete').value;
+        if (!id) return alert('Nhập User ID để xóa');
+        if (!confirm(`Bạn có chắc muốn xóa User ID = ${id}?`)) return;
+        const mutation = `mutation($id: ID!) { deleteUser(id: $id) }`;
+        const data = await callGraphQL(mutation, { id });
+        if (data) document.getElementById('userResult').textContent = `Kết quả xóa User: ${data.deleteUser}`;
+    }
+
+    // --- CATEGORY CRUD ---
+    async function createCategory() {
+        const mutation = `mutation($input: CategoryInput!) { createCategory(category: $input) { id name } }`;
+        const variables = { input: { name: document.getElementById('categoryName').value, images: "default.jpg" } };
+        const data = await callGraphQL(mutation, variables);
+        if (data) document.getElementById('categoryResult').textContent = "Tạo thành công!\n" + JSON.stringify(data, null, 2);
+    }
+    async function updateCategory() {
+        const id = document.getElementById('categoryIdUpdateDelete').value;
+        if (!id) return alert('Nhập Category ID để cập nhật');
+        const mutation = `mutation($id: ID!, $input: CategoryInput!) { updateCategory(id: $id, category: $input) { id name } }`;
+        const variables = { id, input: { name: document.getElementById('categoryNameUpdate').value, images: "updated.jpg" } };
+        const data = await callGraphQL(mutation, variables);
+        if (data) document.getElementById('categoryResult').textContent = "Cập nhật thành công!\n" + JSON.stringify(data, null, 2);
+    }
+    async function deleteCategory() {
+        const id = document.getElementById('categoryIdUpdateDelete').value;
+        if (!id) return alert('Nhập Category ID để xóa');
+        if (!confirm(`Bạn có chắc muốn xóa Category ID = ${id}?`)) return;
+        const mutation = `mutation($id: ID!) { deleteCategory(id: $id) }`;
+        const data = await callGraphQL(mutation, { id });
+        if (data) document.getElementById('categoryResult').textContent = `Kết quả xóa Category: ${data.deleteCategory}`;
+    }
+    
+    // --- PRODUCT CRUD ---
+    async function createProduct() {
+        const mutation = `mutation($input: ProductInput!) { createProduct(product: $input) { id title price } }`;
+        const userId = parseInt(document.getElementById('productUserId').value);
+        const categoryId = parseInt(document.getElementById('productCategoryId').value);
+        if(isNaN(userId) || isNaN(categoryId)) return alert("Vui lòng nhập User ID và Category ID hợp lệ");
+
+        const variables = { input: { 
+            title: document.getElementById('productTitle').value,
+            price: parseFloat(document.getElementById('productPrice').value),
+            userId: userId,
+            categoryId: categoryId,
+            quantity: 1, 
+            desc: "New item"
+        }};
+        const data = await callGraphQL(mutation, variables);
+        if (data) document.getElementById('productResult').textContent = "Tạo thành công!\n" + JSON.stringify(data, null, 2);
+    }
+     async function deleteProduct() {
+        const id = document.getElementById('productIdDelete').value;
+        if (!id) return alert('Nhập Product ID để xóa');
+        if (!confirm(`Bạn có chắc muốn xóa Product ID = ${id}?`)) return;
+        const mutation = `mutation($id: ID!) { deleteProduct(id: $id) }`;
+        const data = await callGraphQL(mutation, { id });
+        if (data) document.getElementById('productResult').textContent = `Kết quả xóa Product: ${data.deleteProduct}`;
+    }
+
+</script>
+</body>
+</html>
